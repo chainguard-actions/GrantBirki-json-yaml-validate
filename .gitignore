@@ -1,0 +1,37 @@
+# vscode
+.vscode
+
+# Dependency directory
+node_modules/
+
+# Coverage directory used by tools like istanbul
+coverage/
+*.lcov
+
+# Optional npm cache directory
+.npm/
+
+# Optional eslint cache
+.eslintcache/
+
+# dotenv environment variables file
+.env
+.env.test
+
+# OS metadata
+.DS_Store
+Thumbs.db
+
+# Extra
+tmp/
+
+# secrets - adding for safety
+secrets.json
+*.pem
+*.key
+*.secret
+*.secrets
+
+# jetbrains
+.idea
+*.iml

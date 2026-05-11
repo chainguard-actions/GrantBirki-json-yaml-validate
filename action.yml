@@ -1,0 +1,105 @@
+name: "json-yaml-validate"
+description: "A GitHub Action to quickly validate JSON and YAML files in a repository"
+author: "Grant Birkinbine"
+branding:
+  icon: 'check'
+  color: 'green'
+inputs:
+  github_token:
+    description: The GitHub token used to create an authenticated client - Provided for you by default!
+    default: ${{ github.token }}
+    required: false
+  mode:
+    description: The mode to run the action in "warn" or "fail" - Default is "fail"
+    required: false
+    default: "fail"
+  comment:
+    description: Whether or not to comment on a PR with the validation results - "true" or "false" - Default is "false"
+    required: false
+    default: "false"
+  base_dir:
+    description: The base directory to search for JSON and YAML files (e.g. ./src) - Default is "." which searches the entire repository
+    required: false
+    default: "."
+  files:
+    description: List of file paths to validate. Each file path must be on a newline.
+    required: false
+    default: ""
+  use_dot_match:
+    description: Whether or not to use dot-matching when searching for files - "true" or "false" - Default is "true" - If this is true, directories like .github, etc will be searched
+    required: false
+    default: "true"
+  json_schema:
+    description: The full path to the JSON schema file (e.g. ./schemas/schema.json) - Default is "" which doesn't enforce a strict schema
+    required: false
+    default: ""
+  json_schema_version:
+    description: The version of the JSON schema to use - "draft-07", "draft-04", "draft-2019-09", "draft-2020-12"
+    default: "draft-07"
+    required: false
+  json_extension:
+    description: The file extension for JSON files (e.g. .json) - Default is ".json"
+    required: false
+    default: ".json"
+  json_exclude_regex:
+    description: A regex to exclude JSON files from validation (e.g. .*\.schema\.json$) - Default is "" which doesn't exclude any files
+    required: false
+    default: ""
+  use_ajv_formats:
+    description: Whether or not to use the AJV formats - "true" or "false"
+    required: false
+    default: "true"
+  yaml_schema:
+    description: The full path to the YAML schema file (e.g. ./schemas/schema.yml) - Default is "" which doesn't enforce a strict schema
+    required: false
+    default: ""
+  yaml_extension:
+    description: The file extension for YAML files (e.g. .yaml) - Default is ".yaml"
+    required: false
+    default: ".yaml"
+  yaml_extension_short:
+    description: The "short" file extension for YAML files (e.g. .yml) - Default is ".yml"
+    required: false
+    default: ".yml"
+  yaml_exclude_regex:
+    description: A regex to exclude YAML files from validation (e.g. .*\.schema\.yaml$) - Default is "" which doesn't exclude any files
+    required: false
+    default: ""
+  yaml_as_json:
+    description: Whether or not to treat and validate YAML files as JSON files - "true" or "false" - Default is "false". If this is true, the JSON schema will be used to validate YAML files. Any YAML schemas will be ignored. For this context, a YAML file is any file which matches the yaml_extension or yaml_extension_short inputs.
+    required: false
+    default: "false"
+  exclude_file:
+    description: The full path to a file in the repository where this Action is running that contains a list of '.gitignore'-style patterns to exclude files from validation (e.g. ./exclude.txt)
+    required: false
+    default: ""
+  exclude_file_required:
+    description: Whether or not the exclude_file must exist if it is used. If this is true and the exclude_file does not exist, the Action will fail - "true" or "false" - Default is "true"
+    required: false
+    default: "true"
+  use_gitignore:
+    description: Whether or not to use the .gitignore file in the root of the repository to exclude files from validation - "true" or "false" - Default is "true"
+    required: true
+    default: "true"
+  git_ignore_path:
+    description: The full path to the .gitignore file to use if use_gitignore is set to "true" (e.g. ./src/.gitignore) - Default is ".gitignore" which uses the .gitignore file in the root of the repository
+    required: false
+    default: ".gitignore"
+  allow_multiple_documents:
+    description: Whether or not to allow multiple documents in a single YAML file - "true" or "false" - Default is "false"
+    required: false
+    default: "false"
+  ajv_strict_mode:
+    description: Whether or not to use strict mode for AJV - "true" or "false" - Default is "true"
+    required: false
+    default: "true"
+  ajv_custom_regexp_formats:
+    description: List of key value pairs of format_name=regexp. Each pair must be on a newline. (e.g. lowercase_chars=^[a-z]*$ )
+    required: false
+    default: ""
+outputs:
+  success:
+    description: Whether or not the validation was successful for all files - "true" or "false"
+runs:
+  using: "node20"
+  main: "dist/index.js"
