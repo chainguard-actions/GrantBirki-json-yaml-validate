@@ -1,7 +1,0 @@
-{
-  "owner": "GrantBirki",
-  "name": "json-yaml-validate",
-  "visibility": "public",
-  "description": "A GitHub Action to quickly validate JSON and YAML files in a repository",
-  "block_publish": false
-}
