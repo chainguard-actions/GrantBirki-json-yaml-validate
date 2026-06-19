@@ -1,0 +1,36 @@
+name: Test exclude regex to skip invalid files
+on:
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    env:
+      GITHUB_EVENT_NAME: push
+      GITHUB_REF: refs/heads/main
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - id: validate
+        uses: .
+        with:
+          # Point at the invalid directory but exclude the bad files via regex
+          base_dir: tests/fixtures/invalid
+          json_exclude_regex: ".*bad\\.json$"
+          yaml_exclude_regex: ".*bad\\.yaml$"
+          mode: "fail"
+          use_gitignore: "false"
+          comment: "false"
+
+      - name: Assert success when invalid files are excluded
+        env:
+          ACTUAL: ${{ steps.validate.outputs.success }}
+          OUTCOME: ${{ steps.validate.outcome }}
+        run: |
+          echo "outcome: $OUTCOME"
+          echo "success: $ACTUAL"
+          if [ "$OUTCOME" != "success" ]; then
+            echo "FAIL: expected action to succeed when invalid files are excluded but outcome was '$OUTCOME'"
+            exit 1
+          fi
+          echo "PASS: action correctly succeeded when invalid files were excluded"

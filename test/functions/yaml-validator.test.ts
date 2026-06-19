@@ -1,0 +1,850 @@
+import {yamlValidator} from '../../src/functions/yaml-validator.js'
+import {core} from '../../src/actions-core.js'
+
+const debugMock = jest.spyOn(core, 'debug').mockImplementation(() => {})
+const infoMock = jest.spyOn(core, 'info').mockImplementation(() => {})
+const errorMock = jest.spyOn(core, 'error').mockImplementation(() => {})
+
+class Exclude {
+  isExcluded() {
+    return false
+  }
+}
+
+const excludeMock = new Exclude()
+
+beforeEach(() => {
+  jest.clearAllMocks()
+  delete process.env.GITHUB_WORKSPACE
+  process.env.INPUT_YAML_SCHEMA = '__tests__/fixtures/schemas/schema1.yaml'
+  process.env.INPUT_BASE_DIR = '__tests__/fixtures/yaml/valid'
+  process.env.INPUT_JSON_EXTENSION = '.json'
+  process.env.INPUT_YAML_EXTENSION = '.yaml'
+  process.env.INPUT_YAML_EXTENSION_SHORT = '.yml'
+  process.env.INPUT_YAML_EXCLUDE_REGEX = '.*bad.*\\.yaml'
+  process.env.INPUT_YAML_AS_JSON = 'false'
+  process.env.INPUT_USE_DOT_MATCH = 'true'
+  process.env.INPUT_FILES = ''
+  process.env.INPUT_ALLOW_MULTIPLE_DOCUMENTS = 'true'
+  process.env.INPUT_SCHEMA_MAPPINGS = ''
+  process.env.INPUT_USE_INLINE_SCHEMA = 'false'
+})
+
+test('successfully validates a yaml file with a schema', async () => {
+  expect(await yamlValidator(excludeMock)).toStrictEqual({
+    failed: 0,
+    passed: 1,
+    skipped: 0,
+    success: true,
+    violations: []
+  })
+})
+
+test('successfully skips a file found in the exclude txt file', async () => {
+  class Exclude {
+    isExcluded() {
+      return true
+    }
+  }
+  const excludeMock = new Exclude()
+  expect(await yamlValidator(excludeMock)).toStrictEqual({
+    failed: 0,
+    passed: 0,
+    skipped: 1,
+    success: true,
+    violations: []
+  })
+})
+
+test('successfully validates a yaml file without using a schema', async () => {
+  process.env.INPUT_YAML_SCHEMA = ''
+  expect(await yamlValidator(excludeMock)).toStrictEqual({
+    failed: 0,
+    passed: 1,
+    skipped: 0,
+    success: true,
+    violations: []
+  })
+})
+
+test('does not apply yaml language-server inline schemas in native yaml mode', async () => {
+  process.env.INPUT_YAML_SCHEMA = ''
+  process.env.INPUT_USE_INLINE_SCHEMA = 'true'
+  process.env.INPUT_FILES =
+    '__tests__/fixtures/inline_schema/yaml/invalid-person.yaml'
+
+  expect(await yamlValidator(excludeMock)).toStrictEqual({
+    failed: 0,
+    passed: 1,
+    skipped: 0,
+    success: true,
+    violations: []
+  })
+})
+
+test('successfully validates a yaml file with a schema and skips the schema as well with the dot mode disabled', async () => {
+  process.env.INPUT_USE_DOT_MATCH = 'false'
+  process.env.INPUT_YAML_SCHEMA =
+    '__tests__/fixtures/yaml/project_dir/schemas/schema.yml'
+  process.env.INPUT_BASE_DIR = '__tests__/fixtures/yaml/project_dir'
+  expect(await yamlValidator(excludeMock)).toStrictEqual({
+    failed: 0,
+    passed: 1,
+    skipped: 0,
+    success: true,
+    violations: []
+  })
+
+  expect(debugMock).toHaveBeenCalledWith(
+    `skipping yaml schema file: ${process.env.INPUT_YAML_SCHEMA}`
+  )
+})
+
+test('successfully validates a yaml file with a schema and skips the schema as well', async () => {
+  process.env.INPUT_YAML_SCHEMA =
+    '__tests__/fixtures/yaml/project_dir/schemas/schema.yml'
+  process.env.INPUT_BASE_DIR = '__tests__/fixtures/yaml/project_dir'
+  expect(await yamlValidator(excludeMock)).toStrictEqual({
+    failed: 0,
+    passed: 2,
+    skipped: 0,
+    success: true,
+    violations: []
+  })
+
+  expect(debugMock).toHaveBeenCalledWith(
+    `skipping yaml schema file: ${process.env.INPUT_YAML_SCHEMA}`
+  )
+})
+
+test('skips yaml schema files when schema input uses a normalized equivalent path', async () => {
+  process.env.INPUT_YAML_SCHEMA =
+    './__tests__/fixtures/yaml/project_dir/schemas/schema.yml'
+  process.env.INPUT_BASE_DIR = '__tests__/fixtures/yaml/project_dir'
+
+  expect(await yamlValidator(excludeMock)).toStrictEqual({
+    failed: 0,
+    passed: 2,
+    skipped: 0,
+    success: true,
+    violations: []
+  })
+
+  expect(debugMock).toHaveBeenCalledWith(
+    'skipping yaml schema file: __tests__/fixtures/yaml/project_dir/schemas/schema.yml'
+  )
+})
+
+test('fails to validate a yaml file without using a schema', async () => {
+  process.env.INPUT_YAML_SCHEMA = ''
+  process.env.INPUT_BASE_DIR = '__tests__/fixtures/yaml/invalid'
+  expect(await yamlValidator(excludeMock)).toStrictEqual({
+    failed: 1,
+    passed: 0,
+    skipped: 1,
+    success: false,
+    violations: [
+      {
+        file: '__tests__/fixtures/yaml/invalid/yaml1.yaml',
+        errors: [
+          {
+            path: null,
+            message: 'Invalid YAML',
+            error:
+              'YAMLParseError Nested mappings are not allowed in compact mappings at line 4, column 17'
+          }
+        ]
+      }
+    ]
+  })
+  expect(errorMock).toHaveBeenCalledWith(
+    '❌ failed to parse YAML file: __tests__/fixtures/yaml/invalid/yaml1.yaml'
+  )
+  expect(infoMock).toHaveBeenCalledWith(
+    'skipping due to exclude match: __tests__/fixtures/yaml/invalid/skip-bad.yaml'
+  )
+})
+
+test('successfully validates yaml files with a schema when files is defined and there are duplicates', async () => {
+  // this file should only be validated once and not duplicated
+  const files = [
+    '__tests__/fixtures/yaml/valid/yaml1.yaml',
+    '__tests__/fixtures/yaml/valid/yaml1.yaml'
+  ]
+  process.env.INPUT_FILES = files.join('\n')
+
+  expect(await yamlValidator(excludeMock)).toStrictEqual({
+    failed: 0,
+    passed: 1,
+    skipped: 0,
+    success: true,
+    violations: []
+  })
+
+  expect(debugMock).toHaveBeenCalledWith(`using files: ${files.join(', ')}`)
+})
+
+test('deduplicates invalid yaml files before counting failures', async () => {
+  process.env.INPUT_YAML_SCHEMA = ''
+  process.env.INPUT_FILES =
+    '__tests__/fixtures/yaml/invalid/yaml1.yaml\n__tests__/fixtures/yaml/invalid/yaml1.yaml'
+  process.env.INPUT_BASE_DIR = '.'
+
+  expect(await yamlValidator(excludeMock)).toStrictEqual({
+    failed: 1,
+    passed: 0,
+    skipped: 0,
+    success: false,
+    violations: [
+      {
+        file: '__tests__/fixtures/yaml/invalid/yaml1.yaml',
+        errors: [
+          {
+            path: null,
+            message: 'Invalid YAML',
+            error:
+              'YAMLParseError Nested mappings are not allowed in compact mappings at line 4, column 17'
+          }
+        ]
+      }
+    ]
+  })
+
+  expect(debugMock).toHaveBeenCalledWith(
+    'skipping duplicate file: __tests__/fixtures/yaml/invalid/yaml1.yaml'
+  )
+})
+
+test('deduplicates excluded yaml files before counting skips', async () => {
+  process.env.INPUT_YAML_SCHEMA = ''
+  process.env.INPUT_FILES =
+    '__tests__/fixtures/yaml/invalid/skip-bad.yaml\n__tests__/fixtures/yaml/invalid/skip-bad.yaml'
+  process.env.INPUT_BASE_DIR = '.'
+
+  expect(await yamlValidator(excludeMock)).toStrictEqual({
+    failed: 0,
+    passed: 0,
+    skipped: 1,
+    success: true,
+    violations: []
+  })
+
+  expect(debugMock).toHaveBeenCalledWith(
+    'skipping duplicate file: __tests__/fixtures/yaml/invalid/skip-bad.yaml'
+  )
+})
+
+test('successfully validates yaml files when files is a flat space-separated list', async () => {
+  const files = [
+    '__tests__/fixtures/yaml/valid/yaml1.yaml',
+    '__tests__/fixtures/yaml/mixture/yaml2.yml'
+  ]
+  process.env.INPUT_YAML_SCHEMA = ''
+  process.env.INPUT_FILES = files.join(' ')
+
+  expect(await yamlValidator(excludeMock)).toStrictEqual({
+    failed: 0,
+    passed: 2,
+    skipped: 0,
+    success: true,
+    violations: []
+  })
+
+  expect(debugMock).toHaveBeenCalledWith(`using files: ${files.join(', ')}`)
+})
+
+test('successfully validates yaml files with multiple schema mappings', async () => {
+  process.env.INPUT_BASE_DIR = '__tests__/fixtures/yaml/invalid'
+  process.env.INPUT_YAML_SCHEMA = '__tests__/fixtures/schemas/schema2.yml'
+  process.env.INPUT_SCHEMA_MAPPINGS = [
+    '- type: json',
+    '  schema: __tests__/fixtures/schemas/schema1.json',
+    '  files:',
+    '    - __tests__/fixtures/json/valid/json1.json',
+    '- type: yaml',
+    '  schema: __tests__/fixtures/schemas/schema1.yaml',
+    '  files:',
+    '    - __tests__/fixtures/yaml/valid/yaml1.yaml',
+    '- type: yaml',
+    '  schema: __tests__/fixtures/schemas/schema2.yml',
+    '  files:',
+    '    - __tests__/fixtures/yaml/mixture/yaml2.yml'
+  ].join('\n')
+
+  expect(await yamlValidator(excludeMock)).toStrictEqual({
+    failed: 0,
+    passed: 2,
+    skipped: 0,
+    success: true,
+    violations: []
+  })
+  expect(debugMock).toHaveBeenCalledWith(
+    'using schema_mappings for yaml validation'
+  )
+})
+
+test('rejects yaml schema mappings when yaml_as_json is enabled', async () => {
+  process.env.INPUT_YAML_AS_JSON = 'true'
+  process.env.INPUT_SCHEMA_MAPPINGS = [
+    '- type: yaml',
+    '  schema: __tests__/fixtures/schemas/schema1.yaml',
+    '  files:',
+    '    - __tests__/fixtures/yaml/valid/yaml1.yaml'
+  ].join('\n')
+
+  await expect(yamlValidator(excludeMock)).rejects.toThrow(
+    'schema_mappings entries with type "yaml" cannot be used when yaml_as_json is true'
+  )
+})
+
+test('fails to validate a yaml file with an incorrect schema', async () => {
+  process.env.INPUT_YAML_SCHEMA = '__tests__/fixtures/schemas/schema2.yml'
+  expect(await yamlValidator(excludeMock)).toStrictEqual({
+    failed: 1,
+    passed: 0,
+    skipped: 0,
+    success: false,
+    violations: [
+      {
+        file: '__tests__/fixtures/yaml/valid/yaml1.yaml',
+        errors: [
+          {
+            path: 'person.age',
+            message: 'person.age must be of type String.'
+          }
+        ]
+      }
+    ]
+  })
+  expect(errorMock).toHaveBeenCalledWith(
+    expect.stringMatching(
+      '❌ failed to parse YAML file: __tests__/fixtures/yaml/valid/yaml1.yaml'
+    )
+  )
+})
+
+test('fails to validate one yaml file with an incorrect schema and succeeds on the other', async () => {
+  process.env.INPUT_YAML_SCHEMA = '__tests__/fixtures/schemas/schema2.yml'
+  process.env.INPUT_BASE_DIR = '__tests__/fixtures/yaml/mixture'
+  expect(await yamlValidator(excludeMock)).toStrictEqual({
+    failed: 1,
+    passed: 1,
+    skipped: 0,
+    success: false,
+    violations: [
+      {
+        file: '__tests__/fixtures/yaml/mixture/yaml1.yaml',
+        errors: [
+          {
+            path: 'person.age',
+            message: 'person.age must be of type String.'
+          },
+          {
+            path: 'person.hobbies.1',
+            message:
+              'person.hobbies.1 must be either football, basketball or tennis.'
+          }
+        ]
+      }
+    ]
+  })
+  expect(infoMock).toHaveBeenCalledWith(
+    '__tests__/fixtures/yaml/mixture/yaml2.yml is valid'
+  )
+  expect(errorMock).toHaveBeenCalledWith(
+    expect.stringMatching(
+      '❌ failed to parse YAML file: __tests__/fixtures/yaml/mixture/yaml1.yaml'
+    )
+  )
+})
+
+test('skips all files when yaml_as_json is true', async () => {
+  process.env.INPUT_YAML_AS_JSON = 'true'
+  expect(await yamlValidator(excludeMock)).toStrictEqual({
+    failed: 0,
+    passed: 0,
+    skipped: 1,
+    success: true,
+    violations: []
+  })
+
+  expect(debugMock).toHaveBeenCalledWith(
+    'skipping yaml since it should be treated as json: __tests__/fixtures/yaml/valid/yaml1.yaml'
+  )
+})
+
+test('skips all files when yaml_as_json is true, even invalid ones', async () => {
+  process.env.INPUT_YAML_AS_JSON = 'true'
+  process.env.INPUT_BASE_DIR = '__tests__/fixtures/yaml/invalid'
+  expect(await yamlValidator(excludeMock)).toStrictEqual({
+    failed: 0,
+    passed: 0,
+    skipped: 2,
+    success: true,
+    violations: []
+  })
+
+  expect(debugMock).toHaveBeenCalledWith(
+    'skipping yaml since it should be treated as json: __tests__/fixtures/yaml/invalid/yaml1.yaml'
+  )
+  expect(debugMock).toHaveBeenCalledWith(
+    'skipping yaml since it should be treated as json: __tests__/fixtures/yaml/invalid/skip-bad.yaml'
+  )
+})
+
+test('deduplicates yaml_as_json skipped files before counting skips', async () => {
+  process.env.INPUT_YAML_AS_JSON = 'true'
+  process.env.INPUT_FILES =
+    '__tests__/fixtures/yaml/valid/yaml1.yaml\n__tests__/fixtures/yaml/valid/yaml1.yaml'
+  process.env.INPUT_BASE_DIR = '.'
+
+  expect(await yamlValidator(excludeMock)).toStrictEqual({
+    failed: 0,
+    passed: 0,
+    skipped: 1,
+    success: true,
+    violations: []
+  })
+
+  expect(debugMock).toHaveBeenCalledWith(
+    'skipping duplicate file: __tests__/fixtures/yaml/valid/yaml1.yaml'
+  )
+})
+
+test('successfully validates a yaml file with multiple documents but fails on the other', async () => {
+  process.env.INPUT_YAML_SCHEMA = ''
+  process.env.INPUT_FILES = [
+    '__tests__/fixtures/yaml/multiple/yaml1.yaml',
+    '__tests__/fixtures/yaml/multiple/invalid.yaml'
+  ].join('\n')
+  expect(await yamlValidator(excludeMock)).toStrictEqual({
+    failed: 1,
+    passed: 1,
+    skipped: 0,
+    success: false,
+    violations: [
+      {
+        file: '__tests__/fixtures/yaml/multiple/invalid.yaml',
+        errors: [
+          {
+            path: null,
+            message: 'Invalid YAML',
+            error:
+              'YAMLParseError Nested mappings are not allowed in compact mappings at line 13, column 9'
+          }
+        ]
+      }
+    ]
+  })
+  expect(infoMock).toHaveBeenCalledWith(
+    `multiple documents found in file: __tests__/fixtures/yaml/multiple/yaml1.yaml`
+  )
+  expect(errorMock).toHaveBeenCalledWith(
+    expect.stringMatching(
+      '❌ failed to parse YAML file: __tests__/fixtures/yaml/multiple/invalid.yaml'
+    )
+  )
+})
+
+test('successfully skips YAML files that match yaml_exclude_regex', async () => {
+  process.env.INPUT_YAML_EXCLUDE_REGEX = '.*valid.*\\.yaml'
+  process.env.INPUT_BASE_DIR = '__tests__/fixtures/yaml/valid'
+
+  expect(await yamlValidator(excludeMock)).toStrictEqual({
+    failed: 0,
+    passed: 0,
+    skipped: 1,
+    success: true,
+    violations: []
+  })
+
+  expect(infoMock).toHaveBeenCalledWith(
+    expect.stringMatching('skipping due to exclude match:')
+  )
+})
+
+test('handles yaml_exclude_regex with empty string (no exclusion)', async () => {
+  process.env.INPUT_YAML_EXCLUDE_REGEX = ''
+  process.env.INPUT_BASE_DIR = '__tests__/fixtures/yaml/valid'
+
+  expect(await yamlValidator(excludeMock)).toStrictEqual({
+    failed: 0,
+    passed: 1,
+    skipped: 0,
+    success: true,
+    violations: []
+  })
+})
+
+test('successfully validates YAML with multiple documents enabled but single document', async () => {
+  process.env.INPUT_ALLOW_MULTIPLE_DOCUMENTS = 'true'
+  process.env.INPUT_BASE_DIR = '__tests__/fixtures/yaml/valid'
+
+  expect(await yamlValidator(excludeMock)).toStrictEqual({
+    failed: 0,
+    passed: 1,
+    skipped: 0,
+    success: true,
+    violations: []
+  })
+})
+
+test('processes YAML files with custom file patterns', async () => {
+  process.env.INPUT_FILES = '__tests__/fixtures/yaml/valid/yaml1.yaml'
+  process.env.INPUT_BASE_DIR = '.'
+
+  expect(await yamlValidator(excludeMock)).toStrictEqual({
+    failed: 0,
+    passed: 1,
+    skipped: 0,
+    success: true,
+    violations: []
+  })
+
+  expect(debugMock).toHaveBeenCalledWith(expect.stringMatching('using files:'))
+})
+
+test('handles use_dot_match disabled', async () => {
+  process.env.INPUT_USE_DOT_MATCH = 'false'
+  process.env.INPUT_BASE_DIR = '__tests__/fixtures/yaml/valid'
+
+  expect(await yamlValidator(excludeMock)).toStrictEqual({
+    failed: 0,
+    passed: 1,
+    skipped: 0,
+    success: true,
+    violations: []
+  })
+})
+
+test('handles schema validation error with null path (covers line 177)', async () => {
+  // This test requires a schema validation error with no path
+  process.env.INPUT_YAML_SCHEMA = '__tests__/fixtures/schemas/schema1.yaml'
+  process.env.INPUT_BASE_DIR = '__tests__/fixtures/yaml/invalid'
+
+  const result = await yamlValidator(excludeMock)
+  expect(result.success).toBe(false)
+  expect(result.failed).toBeGreaterThan(0)
+
+  // Check that we have at least one error with path: null
+  const hasNullPath = result.violations.some(v =>
+    v.errors.some(e => e.path === null)
+  )
+  expect(hasNullPath).toBe(true)
+})
+
+test('edge case: empty yaml_exclude_regex with complex file structure', async () => {
+  process.env.INPUT_YAML_EXCLUDE_REGEX = ''
+  process.env.INPUT_BASE_DIR = '__tests__/fixtures/yaml/mixture'
+
+  const result = await yamlValidator(excludeMock)
+  expect(result.passed + result.failed).toBeGreaterThan(0)
+})
+
+test('edge case: yaml files with custom extensions', async () => {
+  process.env.INPUT_YAML_EXTENSION = '.custom'
+  process.env.INPUT_YAML_EXTENSION_SHORT = '.cust'
+  process.env.INPUT_BASE_DIR = '__tests__/fixtures/yaml/valid'
+
+  // Should find no files with custom extensions
+  const result = await yamlValidator(excludeMock)
+  expect(result.passed + result.failed + result.skipped).toBe(0)
+})
+
+test('edge case: yaml schema file skipping', async () => {
+  process.env.INPUT_YAML_SCHEMA = '__tests__/fixtures/schemas/schema1.yaml'
+  process.env.INPUT_FILES =
+    '__tests__/fixtures/schemas/schema1.yaml\n__tests__/fixtures/yaml/valid/yaml1.yaml'
+  process.env.INPUT_BASE_DIR = '.'
+
+  const result = await yamlValidator(excludeMock)
+  expect(result.passed).toBe(1) // Only yaml1.yaml should be processed
+
+  expect(debugMock).toHaveBeenCalledWith(
+    expect.stringMatching('skipping yaml schema file:')
+  )
+})
+
+test('edge case: mixed valid and invalid yaml with multiple documents disabled', async () => {
+  process.env.INPUT_ALLOW_MULTIPLE_DOCUMENTS = 'false'
+  process.env.INPUT_YAML_SCHEMA = ''
+  process.env.INPUT_FILES = '__tests__/fixtures/yaml/multiple/yaml1.yaml'
+
+  expect(await yamlValidator(excludeMock)).toStrictEqual({
+    failed: 1,
+    passed: 0,
+    skipped: 0,
+    success: false,
+    violations: [
+      {
+        file: '__tests__/fixtures/yaml/multiple/yaml1.yaml',
+        errors: [
+          {
+            path: null,
+            message: 'Invalid YAML',
+            error:
+              'Multiple YAML documents found; set allow_multiple_documents: "true" to validate Kubernetes-style multi-document YAML files.'
+          }
+        ]
+      }
+    ]
+  })
+})
+
+test('edge case: yaml with empty/minimal data structure', async () => {
+  // Create a temporary minimal YAML file
+  const fs = require('fs')
+  const os = require('os')
+  const path = require('path')
+  const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'minimal-yaml-'))
+  const tempFile = path.join(tempDir, 'minimal.yaml')
+  fs.writeFileSync(tempFile, 'null')
+  process.env.GITHUB_WORKSPACE = tempDir
+
+  process.env.INPUT_FILES = tempFile
+  process.env.INPUT_BASE_DIR = '.'
+  process.env.INPUT_YAML_SCHEMA = ''
+
+  const result = await yamlValidator(excludeMock)
+  expect(result.passed).toBe(1)
+
+  // Cleanup
+  fs.rmSync(tempDir, {recursive: true, force: true})
+})
+
+test('edge case: yaml with undefined/null values in error paths', async () => {
+  // This test tries to trigger a schema error with a null/undefined path
+  const fs = require('fs')
+  const os = require('os')
+  const path = require('path')
+  const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'null-path-yaml-'))
+  const tempFile = path.join(tempDir, 'null_path_error.yaml')
+  fs.writeFileSync(
+    tempFile,
+    'invalid_structure: true\nextra_field: not_allowed'
+  )
+  process.env.GITHUB_WORKSPACE = tempDir
+
+  process.env.INPUT_FILES = tempFile
+  process.env.INPUT_BASE_DIR = '.'
+  process.env.INPUT_YAML_SCHEMA = '__tests__/fixtures/schemas/schema1.yaml'
+
+  const result = await yamlValidator(excludeMock)
+  expect(result.failed + result.passed).toBeGreaterThan(0)
+
+  // Cleanup
+  fs.rmSync(tempDir, {recursive: true, force: true})
+})
+
+test('skips json files when yaml_as_json is false', async () => {
+  process.env.INPUT_YAML_AS_JSON = 'false'
+  process.env.INPUT_FILES =
+    '__tests__/fixtures/json/valid/json1.json\n__tests__/fixtures/yaml/valid/yaml1.yaml'
+
+  expect(await yamlValidator(excludeMock)).toStrictEqual({
+    failed: 0,
+    passed: 1,
+    skipped: 0,
+    success: true,
+    violations: []
+  })
+
+  expect(debugMock).toHaveBeenCalledWith(
+    "the yaml-validator found a json file so it will be skipped here: '__tests__/fixtures/json/valid/json1.json'"
+  )
+})
+
+test('falls back to base_dir discovery when explicit yaml file globs match nothing', async () => {
+  process.env.INPUT_FILES = '__tests__/fixtures/does-not-exist/**/*.yaml'
+  process.env.INPUT_BASE_DIR = '__tests__/fixtures/yaml/valid'
+
+  expect(await yamlValidator(excludeMock)).toStrictEqual({
+    failed: 0,
+    passed: 1,
+    skipped: 0,
+    success: true,
+    violations: []
+  })
+})
+
+test('files input validates yaml outside base_dir', async () => {
+  process.env.INPUT_YAML_SCHEMA = ''
+  process.env.INPUT_BASE_DIR = '__tests__/fixtures/json/valid'
+  process.env.INPUT_FILES = '__tests__/fixtures/yaml/valid/yaml1.yaml'
+
+  expect(await yamlValidator(excludeMock)).toStrictEqual({
+    failed: 0,
+    passed: 1,
+    skipped: 0,
+    success: true,
+    violations: []
+  })
+})
+
+test('discovers yaml files with custom extensions', async () => {
+  const fs = require('fs')
+  const os = require('os')
+  const path = require('path')
+  const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'yaml-custom-ext-'))
+  fs.writeFileSync(path.join(tempDir, 'config.yamlx'), 'person:\n  age: 1')
+  fs.writeFileSync(path.join(tempDir, 'other.ymlx'), 'person:\n  age: 2')
+  process.env.GITHUB_WORKSPACE = tempDir
+
+  process.env.INPUT_YAML_SCHEMA = ''
+  process.env.INPUT_YAML_EXTENSION = '.yamlx'
+  process.env.INPUT_YAML_EXTENSION_SHORT = '.ymlx'
+  process.env.INPUT_BASE_DIR = tempDir
+
+  expect(await yamlValidator(excludeMock)).toStrictEqual({
+    failed: 0,
+    passed: 2,
+    skipped: 0,
+    success: true,
+    violations: []
+  })
+
+  fs.rmSync(tempDir, {recursive: true, force: true})
+})
+
+test('rejects explicit yaml file matches that are not regular workspace files', async () => {
+  const fs = require('fs')
+  const os = require('os')
+  const path = require('path')
+  const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'yaml-paths-'))
+  const outsideDir = fs.mkdtempSync(path.join(os.tmpdir(), 'yaml-outside-'))
+  fs.mkdirSync(path.join(tempDir, 'dir.yaml'))
+  fs.writeFileSync(path.join(tempDir, 'ok.yaml'), 'name: Ada')
+  fs.writeFileSync(path.join(outsideDir, 'secret.yaml'), 'name: Ada')
+  fs.symlinkSync(
+    path.join(outsideDir, 'secret.yaml'),
+    path.join(tempDir, 'outside.yaml')
+  )
+  process.env.GITHUB_WORKSPACE = tempDir
+
+  process.env.INPUT_YAML_SCHEMA = ''
+  process.env.INPUT_FILES = path.join(tempDir, '*.yaml')
+  process.env.INPUT_BASE_DIR = tempDir
+
+  const result = await yamlValidator(excludeMock)
+
+  expect(result).toStrictEqual({
+    failed: 2,
+    passed: 1,
+    skipped: 0,
+    success: false,
+    violations: [
+      {
+        file: 'dir.yaml',
+        errors: [
+          {
+            path: null,
+            message: 'validation path must be a regular file: dir.yaml'
+          }
+        ]
+      },
+      {
+        file: 'outside.yaml',
+        errors: [
+          {
+            path: null,
+            message: 'validation path must be inside the workspace: outside.yaml'
+          }
+        ]
+      }
+    ]
+  })
+  expect(infoMock).toHaveBeenCalledWith('ok.yaml is valid')
+
+  fs.rmSync(tempDir, {recursive: true, force: true})
+  fs.rmSync(outsideDir, {recursive: true, force: true})
+})
+
+test('fails yaml discovery when base_dir resolves outside the workspace', async () => {
+  const fs = require('fs')
+  const os = require('os')
+  const path = require('path')
+  const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'yaml-base-'))
+  const workspace = path.join(tempDir, 'workspace')
+  const outside = path.join(tempDir, 'outside')
+  fs.mkdirSync(workspace)
+  fs.mkdirSync(outside)
+  process.env.GITHUB_WORKSPACE = workspace
+
+  process.env.INPUT_YAML_SCHEMA = ''
+  process.env.INPUT_BASE_DIR = outside
+  process.env.INPUT_FILES = ''
+
+  expect(await yamlValidator(excludeMock)).toStrictEqual({
+    failed: 1,
+    passed: 0,
+    skipped: 0,
+    success: false,
+    violations: [
+      {
+        file: outside,
+        errors: [
+          {
+            path: null,
+            message: `validation path must be inside the workspace: ${outside}`
+          }
+        ]
+      }
+    ]
+  })
+
+  fs.rmSync(tempDir, {recursive: true, force: true})
+})
+
+test('multi-document yaml validates each document with yaml_schema', async () => {
+  process.env.INPUT_YAML_SCHEMA = '__tests__/fixtures/schemas/kubernetes.yaml'
+  process.env.INPUT_FILES = '__tests__/fixtures/yaml/multiple/yaml1.yaml'
+  process.env.INPUT_BASE_DIR = '.'
+
+  expect(await yamlValidator(excludeMock)).toStrictEqual({
+    failed: 0,
+    passed: 1,
+    skipped: 0,
+    success: true,
+    violations: []
+  })
+})
+
+test('multi-document yaml schema errors include document indexes', async () => {
+  process.env.INPUT_YAML_SCHEMA = '__tests__/fixtures/schemas/kubernetes.yaml'
+  process.env.INPUT_FILES =
+    '__tests__/fixtures/yaml/multiple/schema-invalid.yaml'
+  process.env.INPUT_BASE_DIR = '.'
+
+  expect(await yamlValidator(excludeMock)).toStrictEqual({
+    failed: 1,
+    passed: 0,
+    skipped: 0,
+    success: false,
+    violations: [
+      {
+        file: '__tests__/fixtures/yaml/multiple/schema-invalid.yaml',
+        errors: [
+          {
+            document: 1,
+            path: 'kind',
+            message: 'kind must be of type String.'
+          }
+        ]
+      }
+    ]
+  })
+})
+
+test('yaml_as_json causes explicit json files to be counted as skipped by yaml validator', async () => {
+  process.env.INPUT_YAML_AS_JSON = 'true'
+  process.env.INPUT_FILES = '__tests__/fixtures/json/valid/json1.json'
+  process.env.INPUT_BASE_DIR = '.'
+
+  expect(await yamlValidator(excludeMock)).toStrictEqual({
+    failed: 0,
+    passed: 0,
+    skipped: 1,
+    success: true,
+    violations: []
+  })
+})

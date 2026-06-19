@@ -1,0 +1,33 @@
+name: Test yaml_as_json mode
+on:
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    env:
+      GITHUB_EVENT_NAME: push
+      GITHUB_REF: refs/heads/main
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - id: validate
+        uses: .
+        with:
+          base_dir: tests/fixtures/yaml-as-json
+          yaml_as_json: "true"
+          json_schema: tests/fixtures/schemas/person.schema.json
+          json_schema_version: "draft-07"
+          use_gitignore: "false"
+          comment: "false"
+
+      - name: Assert success for YAML validated as JSON
+        env:
+          ACTUAL: ${{ steps.validate.outputs.success }}
+        run: |
+          echo "actual: $ACTUAL"
+          if [ "$ACTUAL" != "true" ]; then
+            echo "FAIL: expected success='true' for YAML-as-JSON validation but got '$ACTUAL'"
+            exit 1
+          fi
+          echo "PASS"

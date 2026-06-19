@@ -1,0 +1,33 @@
+name: Test warn mode with invalid files
+on:
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    env:
+      GITHUB_EVENT_NAME: push
+      GITHUB_REF: refs/heads/main
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - id: validate
+        uses: .
+        with:
+          base_dir: tests/fixtures/invalid
+          mode: "warn"
+          use_gitignore: "false"
+          comment: "false"
+
+      - name: Assert action succeeded in warn mode despite invalid files
+        env:
+          OUTCOME: ${{ steps.validate.outcome }}
+          SUCCESS: ${{ steps.validate.outputs.success }}
+        run: |
+          echo "outcome: $OUTCOME"
+          echo "success: $SUCCESS"
+          if [ "$OUTCOME" != "success" ]; then
+            echo "FAIL: expected action to succeed in warn mode but outcome was '$OUTCOME'"
+            exit 1
+          fi
+          echo "PASS: action correctly succeeded in warn mode"

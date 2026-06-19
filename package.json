@@ -1,0 +1,43 @@
+{
+  "name": "json-yaml-validate-action",
+  "version": "0.0.0",
+  "private": true,
+  "description": "A GitHub Action to quickly validate JSON and YAML files in a repository",
+  "type": "module",
+  "main": "src/main.ts",
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "lint": "npm run typecheck",
+    "package": "ncc build src/main.ts -o dist --source-map --license licenses.txt",
+    "test": "npm run ci-test; test_status=$?; if [ $test_status -eq 0 ]; then node scripts/coverage-badge.js; fi; exit $test_status",
+    "ci-test": "LOCAL_ACTIONS_CI_TEST=true node --import tsx --import ./test/setup.ts --test --test-concurrency=1 --experimental-test-coverage --test-coverage-include='src/**/*.ts' --test-coverage-lines=100 --test-coverage-branches=97 --test-coverage-functions=100 test/*.test.ts test/functions/*.test.ts",
+    "all": "npm run typecheck && npm test && npm run package",
+    "bundle": "npm run package"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/grantbirki/json-yaml-validate.git"
+  },
+  "keywords": [
+    "actions",
+    "ci",
+    "json",
+    "yaml",
+    "validate"
+  ],
+  "author": "Grant Birkinbine",
+  "license": "MIT",
+  "dependencies": {
+    "ajv": "^8.20.0",
+    "ajv-draft-04": "^1.0.0",
+    "ajv-formats": "^3.0.1",
+    "ignore": "^7.0.5",
+    "yaml": "^2.8.4"
+  },
+  "devDependencies": {
+    "@types/node": "^25.6.0",
+    "@vercel/ncc": "^0.38.4",
+    "tsx": "^4.21.0",
+    "typescript": "^6.0.3"
+  }
+}
