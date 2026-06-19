@@ -9,6 +9,7 @@ Hardened by [Chainguard](https://www.chainguard.dev) from the upstream action at
 | Version | Tag | Upstream commit |
 |---------|-----|-----------------|
 | v3.3.2 | [`v3.3.2`](https://github.com/chainguard-actions/GrantBirki-json-yaml-validate/tree/v3.3.2) | — |
+| v5.0.0 | [`v5.0.0`](https://github.com/chainguard-actions/GrantBirki-json-yaml-validate/tree/v5.0.0) | [`3ff7597`](https://github.com/GrantBirki/json-yaml-validate/commit/3ff75979f3b21171f2e8a44705f0ff4bed30bbc0) |
 
 ## Privacy
 
