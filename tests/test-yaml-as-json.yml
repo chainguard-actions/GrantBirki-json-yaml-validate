@@ -1,0 +1,31 @@
+name: Test yaml_as_json mode
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - id: action
+        uses: .
+        with:
+          files: |
+            ${{ github.workspace }}/tests/fixtures/valid/sample.yaml
+            ${{ github.workspace }}/tests/fixtures/valid/sample.yml
+          json_schema: ${{ github.workspace }}/tests/fixtures/schema/schema.json
+          yaml_as_json: "true"
+          json_extension: ".nojson"
+          use_gitignore: "false"
+          use_dot_match: "false"
+
+      - name: Assert success output is true (valid YAML passes JSON schema)
+        env:
+          ACTUAL: ${{ steps.action.outputs.success }}
+        run: |
+          echo "actual: $ACTUAL"
+          if [ "$ACTUAL" != "true" ]; then
+            echo "FAIL: expected success=true but got '$ACTUAL'"
+            exit 1
+          fi
+          echo "PASS"

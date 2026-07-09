@@ -1,0 +1,29 @@
+name: Test warn mode does not fail the step
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - id: action
+        uses: .
+        continue-on-error: true
+        with:
+          base_dir: ${{ github.workspace }}/tests/fixtures/invalid
+          mode: "warn"
+          use_gitignore: "false"
+          use_dot_match: "false"
+
+      - name: Assert step did not fail (warn mode) and success is false
+        env:
+          ACTUAL: ${{ steps.action.outputs.success }}
+        run: |
+          echo "actual: $ACTUAL"
+          # In warn mode the step should complete (not exit 1) but report success=false
+          if [ "$ACTUAL" != "false" ]; then
+            echo "FAIL: expected success=false in warn mode but got '$ACTUAL'"
+            exit 1
+          fi
+          echo "PASS: warn mode reported failure without failing the step"

@@ -1,0 +1,4 @@
+name: test
+  broken: yaml: content:
+    - invalid
+  indentation: [unclosed

@@ -1,0 +1,30 @@
+name: Test json_exclude_regex excludes files from validation
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - id: action
+        uses: .
+        with:
+          # Point at the invalid directory but exclude the bad JSON file
+          base_dir: ${{ github.workspace }}/tests/fixtures/invalid
+          json_exclude_regex: ".*bad\\.json$"
+          yaml_extension: ".noyaml"
+          yaml_extension_short: ".noyml"
+          use_gitignore: "false"
+          use_dot_match: "false"
+
+      - name: Assert success output is true (bad.json was excluded)
+        env:
+          ACTUAL: ${{ steps.action.outputs.success }}
+        run: |
+          echo "actual: $ACTUAL"
+          if [ "$ACTUAL" != "true" ]; then
+            echo "FAIL: expected success=true (bad.json excluded) but got '$ACTUAL'"
+            exit 1
+          fi
+          echo "PASS"
