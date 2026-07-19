@@ -1,0 +1,39 @@
+name: Test allow_multiple_documents for YAML
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Create multi-document YAML fixture file
+        run: |
+          mkdir -p tests/fixtures/multi-yaml-docs
+
+          # Create a YAML file with multiple documents (separated by ---)
+          cat > tests/fixtures/multi-yaml-docs/multi.yaml << 'EOF'
+          name: document-one
+          version: "1.0.0"
+          ---
+          name: document-two
+          version: "2.0.0"
+          EOF
+
+      - id: action
+        uses: .
+        with:
+          base_dir: tests/fixtures/multi-yaml-docs
+          allow_multiple_documents: "true"
+          use_gitignore: "false"
+
+      - name: Assert success output is true for multi-document YAML
+        env:
+          ACTUAL: ${{ steps.action.outputs.success }}
+        run: |
+          echo "actual: $ACTUAL"
+          if [ "$ACTUAL" != "true" ]; then
+            echo "FAIL: expected 'true' but got '$ACTUAL'"
+            exit 1
+          fi
+          echo "PASS"

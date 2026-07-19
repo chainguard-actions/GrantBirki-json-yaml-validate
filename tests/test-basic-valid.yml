@@ -1,4 +1,4 @@
-name: Test basic valid JSON and YAML
+name: Test basic valid JSON and YAML files
 on:
   workflow_dispatch:
 jobs:
@@ -10,9 +10,8 @@ jobs:
       - id: action
         uses: .
         with:
-          base_dir: ${{ github.workspace }}/tests/fixtures/valid
+          base_dir: tests/fixtures/basic-valid
           use_gitignore: "false"
-          use_dot_match: "false"
 
       - name: Assert success output is true
         env:
@@ -20,7 +19,7 @@ jobs:
         run: |
           echo "actual: $ACTUAL"
           if [ "$ACTUAL" != "true" ]; then
-            echo "FAIL: expected success=true but got '$ACTUAL'"
+            echo "FAIL: expected 'true' but got '$ACTUAL'"
             exit 1
           fi
           echo "PASS"

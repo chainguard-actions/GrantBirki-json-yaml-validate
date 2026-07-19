@@ -1,4 +1,4 @@
-name: Test json_exclude_regex excludes files from validation
+name: Test exclude regex for JSON files
 on:
   workflow_dispatch:
 jobs:
@@ -7,24 +7,39 @@ jobs:
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
 
+      - name: Create fixture files with one invalid JSON that should be excluded
+        run: |
+          mkdir -p tests/fixtures/exclude-regex
+
+          # Create a valid JSON file
+          cat > tests/fixtures/exclude-regex/valid.json << 'EOF'
+          {
+            "name": "valid-file"
+          }
+          EOF
+
+          # Create an invalid JSON file that will be excluded by regex
+          cat > tests/fixtures/exclude-regex/excluded.schema.json << 'EOF'
+          {
+            "name": "this is invalid json"
+            "missing_comma": true
+          }
+          EOF
+
       - id: action
         uses: .
         with:
-          # Point at the invalid directory but exclude the bad JSON file
-          base_dir: ${{ github.workspace }}/tests/fixtures/invalid
-          json_exclude_regex: ".*bad\\.json$"
-          yaml_extension: ".noyaml"
-          yaml_extension_short: ".noyml"
+          base_dir: tests/fixtures/exclude-regex
+          json_exclude_regex: ".*\\.schema\\.json$"
           use_gitignore: "false"
-          use_dot_match: "false"
 
-      - name: Assert success output is true (bad.json was excluded)
+      - name: Assert success output is true (invalid file was excluded)
         env:
           ACTUAL: ${{ steps.action.outputs.success }}
         run: |
           echo "actual: $ACTUAL"
           if [ "$ACTUAL" != "true" ]; then
-            echo "FAIL: expected success=true (bad.json excluded) but got '$ACTUAL'"
+            echo "FAIL: expected 'true' but got '$ACTUAL' - the excluded file should not have been validated"
             exit 1
           fi
           echo "PASS"

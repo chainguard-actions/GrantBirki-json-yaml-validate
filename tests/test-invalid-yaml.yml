@@ -7,23 +7,26 @@ jobs:
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
 
+      - name: Create invalid YAML fixture file
+        run: |
+          mkdir -p tests/fixtures/invalid-yaml
+          # Create a YAML file with invalid indentation/structure
+          printf 'name: test\n  bad_indent:\n    - item1\n  key: value\nbad: [unclosed\n' > tests/fixtures/invalid-yaml/bad.yaml
+
       - id: action
         uses: .
-        continue-on-error: true
         with:
-          base_dir: ${{ github.workspace }}/tests/fixtures/invalid
-          json_extension: ".nojson"
+          base_dir: tests/fixtures/invalid-yaml
           mode: "warn"
           use_gitignore: "false"
-          use_dot_match: "false"
 
-      - name: Assert success output is false (invalid YAML detected)
+      - name: Assert success output is false for invalid YAML
         env:
           ACTUAL: ${{ steps.action.outputs.success }}
         run: |
           echo "actual: $ACTUAL"
           if [ "$ACTUAL" != "false" ]; then
-            echo "FAIL: expected success=false but got '$ACTUAL'"
+            echo "FAIL: expected 'false' but got '$ACTUAL'"
             exit 1
           fi
           echo "PASS"

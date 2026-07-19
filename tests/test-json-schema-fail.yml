@@ -1,0 +1,60 @@
+name: Test JSON schema validation failure
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Create JSON schema and invalid data fixture files
+        run: |
+          mkdir -p tests/fixtures/json-schema-fail/data
+          mkdir -p tests/fixtures/json-schema-fail/schemas
+
+          # Create a JSON schema requiring specific fields
+          cat > tests/fixtures/json-schema-fail/schemas/schema.json << 'EOF'
+          {
+            "$schema": "http://json-schema.org/draft-07/schema#",
+            "type": "object",
+            "required": ["name", "version"],
+            "properties": {
+              "name": {
+                "type": "string"
+              },
+              "version": {
+                "type": "string"
+              }
+            },
+            "additionalProperties": false
+          }
+          EOF
+
+          # Create a JSON file that violates the schema (extra field not allowed)
+          cat > tests/fixtures/json-schema-fail/data/invalid.json << 'EOF'
+          {
+            "name": "my-app",
+            "version": "1.0.0",
+            "unexpected_field": "not allowed"
+          }
+          EOF
+
+      - id: action
+        uses: .
+        with:
+          base_dir: tests/fixtures/json-schema-fail/data
+          json_schema: tests/fixtures/json-schema-fail/schemas/schema.json
+          json_schema_version: "draft-07"
+          mode: "warn"
+          use_gitignore: "false"
+
+      - name: Assert success output is false for schema-invalid JSON
+        env:
+          ACTUAL: ${{ steps.action.outputs.success }}
+        run: |
+          echo "actual: $ACTUAL"
+          if [ "$ACTUAL" != "false" ]; then
+            echo "FAIL: expected 'false' but got '$ACTUAL'"
+            exit 1
+          fi
+          echo "PASS"

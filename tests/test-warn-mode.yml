@@ -1,4 +1,4 @@
-name: Test warn mode does not fail the step
+name: Test warn mode with invalid files
 on:
   workflow_dispatch:
 jobs:
@@ -7,23 +7,34 @@ jobs:
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
 
+      - name: Create invalid JSON fixture file
+        run: |
+          mkdir -p tests/fixtures/warn-mode
+          cat > tests/fixtures/warn-mode/bad.json << 'EOF'
+          {
+            "name": "test"
+            "missing_comma": true
+          }
+          EOF
+
       - id: action
         uses: .
-        continue-on-error: true
         with:
-          base_dir: ${{ github.workspace }}/tests/fixtures/invalid
+          base_dir: tests/fixtures/warn-mode
           mode: "warn"
           use_gitignore: "false"
-          use_dot_match: "false"
 
-      - name: Assert step did not fail (warn mode) and success is false
+      - name: Assert action step itself did not fail (warn mode)
+        run: |
+          echo "PASS: action completed without failing the step in warn mode"
+
+      - name: Assert success output is false (validation failed but step did not error)
         env:
           ACTUAL: ${{ steps.action.outputs.success }}
         run: |
           echo "actual: $ACTUAL"
-          # In warn mode the step should complete (not exit 1) but report success=false
           if [ "$ACTUAL" != "false" ]; then
-            echo "FAIL: expected success=false in warn mode but got '$ACTUAL'"
+            echo "FAIL: expected 'false' but got '$ACTUAL'"
             exit 1
           fi
-          echo "PASS: warn mode reported failure without failing the step"
+          echo "PASS: warn mode correctly reports failure without failing the step"

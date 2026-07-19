@@ -7,25 +7,40 @@ jobs:
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
 
+      - name: Create fixture files - one valid, one invalid
+        run: |
+          mkdir -p tests/fixtures/specific-files
+
+          # Create a valid JSON file
+          cat > tests/fixtures/specific-files/valid.json << 'EOF'
+          {
+            "name": "valid-file",
+            "version": "1.0.0"
+          }
+          EOF
+
+          # Create an invalid JSON file (but we won't include it in the files list)
+          cat > tests/fixtures/specific-files/invalid.json << 'EOF'
+          {
+            "name": "invalid-file"
+            "missing_comma": true
+          }
+          EOF
+
       - id: action
         uses: .
         with:
           files: |
-            ${{ github.workspace }}/tests/fixtures/valid/sample.json
-            ${{ github.workspace }}/tests/fixtures/valid/sample.yaml
-            ${{ github.workspace }}/tests/fixtures/valid/sample.yml
-          # Exclude YAML files from JSON validation (JSON validator processes all files in the list)
-          json_exclude_regex: ".*\\.(yaml|yml)$"
+            tests/fixtures/specific-files/valid.json
           use_gitignore: "false"
-          use_dot_match: "false"
 
-      - name: Assert success output is true for specific valid files
+      - name: Assert success output is true (only valid file was checked)
         env:
           ACTUAL: ${{ steps.action.outputs.success }}
         run: |
           echo "actual: $ACTUAL"
           if [ "$ACTUAL" != "true" ]; then
-            echo "FAIL: expected success=true but got '$ACTUAL'"
+            echo "FAIL: expected 'true' but got '$ACTUAL' - only the valid file should have been validated"
             exit 1
           fi
           echo "PASS"

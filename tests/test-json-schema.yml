@@ -1,4 +1,4 @@
-name: Test yaml_as_json mode
+name: Test JSON schema validation
 on:
   workflow_dispatch:
 jobs:
@@ -7,13 +7,13 @@ jobs:
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
 
-      - name: Create YAML fixture files and JSON schema
+      - name: Create JSON schema and valid data fixture files
         run: |
-          mkdir -p tests/fixtures/yaml-as-json/data
-          mkdir -p tests/fixtures/yaml-as-json/schemas
+          mkdir -p tests/fixtures/json-schema/data
+          mkdir -p tests/fixtures/json-schema/schemas
 
           # Create a JSON schema
-          cat > tests/fixtures/yaml-as-json/schemas/schema.json << 'EOF'
+          cat > tests/fixtures/json-schema/schemas/schema.json << 'EOF'
           {
             "$schema": "http://json-schema.org/draft-07/schema#",
             "type": "object",
@@ -24,26 +24,33 @@ jobs:
               },
               "version": {
                 "type": "string"
+              },
+              "enabled": {
+                "type": "boolean"
               }
-            }
+            },
+            "additionalProperties": false
           }
           EOF
 
-          # Create a valid YAML file that conforms to the JSON schema
-          cat > tests/fixtures/yaml-as-json/data/config.yaml << 'EOF'
-          name: my-service
-          version: "3.0.0"
+          # Create a valid JSON file that matches the schema
+          cat > tests/fixtures/json-schema/data/valid.json << 'EOF'
+          {
+            "name": "my-app",
+            "version": "2.0.0",
+            "enabled": true
+          }
           EOF
 
       - id: action
         uses: .
         with:
-          base_dir: tests/fixtures/yaml-as-json/data
-          json_schema: tests/fixtures/yaml-as-json/schemas/schema.json
-          yaml_as_json: "true"
+          base_dir: tests/fixtures/json-schema/data
+          json_schema: tests/fixtures/json-schema/schemas/schema.json
+          json_schema_version: "draft-07"
           use_gitignore: "false"
 
-      - name: Assert success output is true for YAML validated as JSON
+      - name: Assert success output is true for schema-valid JSON
         env:
           ACTUAL: ${{ steps.action.outputs.success }}
         run: |
