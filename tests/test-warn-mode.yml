@@ -1,33 +1,37 @@
 name: Test warn mode with invalid files
 on:
   workflow_dispatch:
-
 jobs:
   test:
     runs-on: ubuntu-latest
-    env:
-      GITHUB_EVENT_NAME: push
-      GITHUB_REF: refs/heads/main
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
 
-      - id: validate
+      - id: action
         uses: .
         with:
-          base_dir: tests/fixtures/invalid
-          mode: "warn"
+          base_dir: ./tests/fixtures/invalid
           use_gitignore: "false"
-          comment: "false"
+          mode: "warn"
 
-      - name: Assert action succeeded in warn mode despite invalid files
+      - name: Assert action succeeded in warn mode
         env:
-          OUTCOME: ${{ steps.validate.outcome }}
-          SUCCESS: ${{ steps.validate.outputs.success }}
+          OUTCOME: ${{ steps.action.outcome }}
         run: |
           echo "outcome: $OUTCOME"
-          echo "success: $SUCCESS"
           if [ "$OUTCOME" != "success" ]; then
-            echo "FAIL: expected action to succeed in warn mode but outcome was '$OUTCOME'"
+            echo "FAIL: expected action to succeed in warn mode, but outcome was '$OUTCOME'"
             exit 1
           fi
-          echo "PASS: action correctly succeeded in warn mode"
+          echo "PASS: action correctly succeeded in warn mode despite invalid files"
+
+      - name: Assert success output is false (validation errors found)
+        env:
+          ACTUAL: ${{ steps.action.outputs.success }}
+        run: |
+          echo "actual: $ACTUAL"
+          if [ "$ACTUAL" != "false" ]; then
+            echo "FAIL: expected success=false (validation errors) but got '$ACTUAL'"
+            exit 1
+          fi
+          echo "PASS: success=false correctly reported in warn mode"

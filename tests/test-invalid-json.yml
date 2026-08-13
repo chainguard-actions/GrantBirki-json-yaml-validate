@@ -1,4 +1,4 @@
-name: Test JSON schema validation with invalid file
+name: Test invalid JSON detection
 on:
   workflow_dispatch:
 jobs:
@@ -10,14 +10,13 @@ jobs:
       - id: action
         uses: .
         with:
-          files: ./tests/fixtures/schemas/invalid-person.json
-          json_schema: ./tests/fixtures/schemas/person.schema.json
-          json_schema_version: "draft-07"
+          base_dir: ./tests/fixtures/invalid
+          yaml_exclude_regex: ".*\\.yaml$"
           use_gitignore: "false"
           mode: "fail"
         continue-on-error: true
 
-      - name: Assert action failed (schema violation detected)
+      - name: Assert action failed (invalid JSON detected)
         env:
           OUTCOME: ${{ steps.action.outcome }}
           SUCCESS: ${{ steps.action.outputs.success }}
@@ -25,7 +24,7 @@ jobs:
           echo "outcome: $OUTCOME"
           echo "success: $SUCCESS"
           if [ "$OUTCOME" != "failure" ]; then
-            echo "FAIL: expected action to fail due to schema violation, but outcome was '$OUTCOME'"
+            echo "FAIL: expected action to fail due to invalid JSON, but outcome was '$OUTCOME'"
             exit 1
           fi
-          echo "PASS: action correctly failed on schema violation"
+          echo "PASS: action correctly failed on invalid JSON"
