@@ -1,0 +1,41 @@
+name: Test fail mode with invalid JSON
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Create test fixtures directory
+        run: mkdir -p "$GITHUB_WORKSPACE/tests/fixtures/fail-mode"
+
+      - name: Create invalid JSON file
+        run: |
+          cat > "$GITHUB_WORKSPACE/tests/fixtures/fail-mode/broken.json" << 'EOF'
+          {
+            "key": "value"
+            "missing_comma": true
+          }
+          EOF
+
+      - id: action
+        uses: .
+        continue-on-error: true
+        with:
+          base_dir: "./tests/fixtures/fail-mode"
+          mode: "fail"
+          use_gitignore: "false"
+
+      - name: Assert action failed due to invalid JSON in fail mode
+        env:
+          OUTCOME: ${{ steps.action.outcome }}
+          SUCCESS: ${{ steps.action.outputs.success }}
+        run: |
+          echo "outcome: $OUTCOME"
+          echo "success: $SUCCESS"
+          if [ "$OUTCOME" != "failure" ]; then
+            echo "FAIL: expected action to fail in fail mode with invalid JSON, but outcome was '$OUTCOME'"
+            exit 1
+          fi
+          echo "PASS: action correctly failed in fail mode"

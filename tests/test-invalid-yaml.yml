@@ -1,0 +1,38 @@
+name: Test invalid YAML detection
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Create test fixtures directory
+        run: mkdir -p "$GITHUB_WORKSPACE/tests/fixtures/invalid-yaml"
+
+      - name: Create invalid YAML file
+        run: |
+          cat > "$GITHUB_WORKSPACE/tests/fixtures/invalid-yaml/bad.yaml" << 'EOF'
+          name: test
+            bad_indent:
+          - this is wrong indentation
+            key: value
+          EOF
+
+      - id: action
+        uses: .
+        with:
+          base_dir: "./tests/fixtures/invalid-yaml"
+          mode: "warn"
+          use_gitignore: "false"
+
+      - name: Assert success output is false
+        env:
+          SUCCESS: ${{ steps.action.outputs.success }}
+        run: |
+          echo "success: $SUCCESS"
+          if [ "$SUCCESS" != "false" ]; then
+            echo "FAIL: expected success=false for invalid YAML but got '$SUCCESS'"
+            exit 1
+          fi
+          echo "PASS"

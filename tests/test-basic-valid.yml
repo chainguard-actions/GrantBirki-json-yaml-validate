@@ -1,0 +1,46 @@
+name: Test basic valid JSON and YAML files
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Create test fixtures directory
+        run: mkdir -p "$GITHUB_WORKSPACE/tests/fixtures/valid"
+
+      - name: Create valid JSON file
+        run: |
+          cat > "$GITHUB_WORKSPACE/tests/fixtures/valid/sample.json" << 'EOF'
+          {
+            "name": "test",
+            "version": "1.0.0",
+            "enabled": true
+          }
+          EOF
+
+      - name: Create valid YAML file
+        run: |
+          cat > "$GITHUB_WORKSPACE/tests/fixtures/valid/sample.yaml" << 'EOF'
+          name: test
+          version: "1.0.0"
+          enabled: true
+          EOF
+
+      - id: action
+        uses: .
+        with:
+          base_dir: "./tests/fixtures/valid"
+          use_gitignore: "false"
+
+      - name: Assert success output is true
+        env:
+          SUCCESS: ${{ steps.action.outputs.success }}
+        run: |
+          echo "success: $SUCCESS"
+          if [ "$SUCCESS" != "true" ]; then
+            echo "FAIL: expected success=true but got '$SUCCESS'"
+            exit 1
+          fi
+          echo "PASS"

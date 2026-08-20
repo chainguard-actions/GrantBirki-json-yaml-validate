@@ -1,0 +1,38 @@
+name: Test invalid JSON detection
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Create test fixtures directory
+        run: mkdir -p "$GITHUB_WORKSPACE/tests/fixtures/invalid-json"
+
+      - name: Create invalid JSON file
+        run: |
+          cat > "$GITHUB_WORKSPACE/tests/fixtures/invalid-json/bad.json" << 'EOF'
+          {
+            "name": "test"
+            "missing_comma": true
+          }
+          EOF
+
+      - id: action
+        uses: .
+        with:
+          base_dir: "./tests/fixtures/invalid-json"
+          mode: "warn"
+          use_gitignore: "false"
+
+      - name: Assert success output is false
+        env:
+          SUCCESS: ${{ steps.action.outputs.success }}
+        run: |
+          echo "success: $SUCCESS"
+          if [ "$SUCCESS" != "false" ]; then
+            echo "FAIL: expected success=false for invalid JSON but got '$SUCCESS'"
+            exit 1
+          fi
+          echo "PASS"

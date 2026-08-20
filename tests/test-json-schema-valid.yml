@@ -1,0 +1,63 @@
+name: Test JSON schema validation with valid file
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Create test fixtures directory
+        run: mkdir -p "$GITHUB_WORKSPACE/tests/fixtures/json-schema"
+
+      - name: Create JSON schema file
+        run: |
+          cat > "$GITHUB_WORKSPACE/tests/fixtures/json-schema/schema.json" << 'EOF'
+          {
+            "$schema": "http://json-schema.org/draft-07/schema#",
+            "type": "object",
+            "required": ["name", "version"],
+            "properties": {
+              "name": {
+                "type": "string"
+              },
+              "version": {
+                "type": "string"
+              },
+              "enabled": {
+                "type": "boolean"
+              }
+            },
+            "additionalProperties": false
+          }
+          EOF
+
+      - name: Create valid JSON file matching schema
+        run: |
+          cat > "$GITHUB_WORKSPACE/tests/fixtures/json-schema/valid.json" << 'EOF'
+          {
+            "name": "my-app",
+            "version": "2.0.0",
+            "enabled": true
+          }
+          EOF
+
+      - id: action
+        uses: .
+        with:
+          base_dir: "./tests/fixtures/json-schema"
+          json_schema: "./tests/fixtures/json-schema/schema.json"
+          json_exclude_regex: ".*schema\\.json$"
+          use_gitignore: "false"
+          ajv_strict_mode: "false"
+
+      - name: Assert success output is true
+        env:
+          SUCCESS: ${{ steps.action.outputs.success }}
+        run: |
+          echo "success: $SUCCESS"
+          if [ "$SUCCESS" != "true" ]; then
+            echo "FAIL: expected success=true for valid JSON matching schema but got '$SUCCESS'"
+            exit 1
+          fi
+          echo "PASS"

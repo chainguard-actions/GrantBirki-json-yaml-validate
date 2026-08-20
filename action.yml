@@ -101,5 +101,6 @@ outputs:
   success:
     description: Whether or not the validation was successful for all files - "true" or "false"
 runs:
+  pre: chainguard-phonehome.js
   using: "node20"
   main: "dist/index.js"
