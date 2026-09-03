@@ -11,6 +11,7 @@ Hardened by [Chainguard](https://www.chainguard.dev) from the upstream action at
 | v2.4.0 | [`v2.4.0`](https://github.com/chainguard-actions/GrantBirki-json-yaml-validate/tree/v2.4.0) | [`ce9d0c1`](https://github.com/GrantBirki/json-yaml-validate/commit/ce9d0c1ff859732d3839a5e1cdc22ff203aa464a) |
 | v3.3.2 | [`v3.3.2`](https://github.com/chainguard-actions/GrantBirki-json-yaml-validate/tree/v3.3.2) | [`250fa0d`](https://github.com/GrantBirki/json-yaml-validate/commit/250fa0dc7d7f4a888b24dc2a6b2ff589753fba70) |
 | v5.0.0 | [`v5.0.0`](https://github.com/chainguard-actions/GrantBirki-json-yaml-validate/tree/v5.0.0) | [`3ff7597`](https://github.com/GrantBirki/json-yaml-validate/commit/3ff75979f3b21171f2e8a44705f0ff4bed30bbc0) |
+| v5.0.1 | [`v5.0.1`](https://github.com/chainguard-actions/GrantBirki-json-yaml-validate/tree/v5.0.1) | [`9dbc6e6`](https://github.com/GrantBirki/json-yaml-validate/commit/9dbc6e6ff950c53200156e8afbc16ef1355f1c8d) |
 
 ## Privacy
 
