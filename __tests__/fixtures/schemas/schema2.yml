@@ -1,0 +1,13 @@
+---
+person:
+  name:
+    first_name:
+      type: string
+  age:
+    type: string
+    required: true
+  employeed:
+    type: boolean
+  hobbies:
+    - type: string
+      enum: [football, basketball, tennis]

@@ -1,0 +1,35 @@
+name: Test JSON schema validation with valid file
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - id: action
+        uses: .
+        with:
+          files: |
+            tests/fixtures/schemas/valid-person.json
+          json_schema: tests/fixtures/schemas/person.schema.json
+          use_gitignore: "false"
+          mode: "fail"
+          ajv_strict_mode: "false"
+
+      - name: Assert success output is true for valid schema match
+        env:
+          SUCCESS: ${{ steps.action.outputs.success }}
+          OUTCOME: ${{ steps.action.outcome }}
+        run: |
+          echo "outcome: $OUTCOME"
+          echo "success: $SUCCESS"
+          if [ "$OUTCOME" != "success" ]; then
+            echo "FAIL: expected action to succeed but outcome was '$OUTCOME'"
+            exit 1
+          fi
+          if [ "$SUCCESS" != "true" ]; then
+            echo "FAIL: expected success=true but got '$SUCCESS'"
+            exit 1
+          fi
+          echo "PASS"
